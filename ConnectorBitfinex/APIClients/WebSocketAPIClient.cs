@@ -21,6 +21,7 @@ namespace ConnectorBitfinex.APIClients
             public string type;
             public string info;
         }
+
         public WebSocketAPIClient()
         {
             _clientWebSocket = new ClientWebSocket();

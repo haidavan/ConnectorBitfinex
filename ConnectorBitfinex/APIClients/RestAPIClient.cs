@@ -18,6 +18,7 @@ public class RestAPIClient
             new MediaTypeWithQualityHeaderValue("application/json"));
 
     }
+
     public async Task<string> GetTradeAsync(string pair, int maxCount)
     {
         var uriBuilder = new UriBuilder(_httpClient.BaseAddress + $"trades/{pair}/hist");

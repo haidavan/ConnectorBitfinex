@@ -22,6 +22,7 @@ public class Connector : ITestConnector
 
         _websocketClient.ConnectToServer().Wait();
     }
+
     public event Action<Trade> NewBuyTrade
     {
         add { _newBuyTrade += value; }

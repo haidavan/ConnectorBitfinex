@@ -15,7 +15,7 @@ public interface ITestConnector
     #region Socket
 
 
-    public event Action<Trade> NewBuyTrade;
+   public event Action<Trade> NewBuyTrade;
     public event Action<Trade> NewSellTrade;
     public void SubscribeTrades(string pair, int maxCount = 100);
     public void UnsubscribeTrades(string pair);

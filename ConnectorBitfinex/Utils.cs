@@ -6,14 +6,25 @@ namespace ConnectorBitfinex;
 
 public static class Utils
 {
+    //Available values: "1m", "5m", "15m", "30m", "1h", "3h", "6h", "12h", "1D", "1W", "14D", "1M".
     public static string getAllowedTimeFrames(int periodInSec)
     {
         switch (periodInSec)
         {
             case 60: return "1m";
-            case 120: return "2m";
+            case 300: return "5m";
+            case 900:return "15m";
+            case 1800:return "30m";
+            case 3600:return "1h";
+            case 10800:return "3h";
+            case 21600:return "6h";
+            case 43200:return "12h";
+            case 86400:return "1D";
+            case 604800:return "1W";
+            case 1209600:return "14D";
+            case 2592000:return "1M"; //30 суток
             default:
-                throw new Exception();
+                throw new Exception("unavailable time frame");
         }
     }
     public static IEnumerable<Candle> GetCandlesFromJson(string json, string pair)
