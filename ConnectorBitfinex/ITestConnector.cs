@@ -1,4 +1,5 @@
 ﻿using ConnectorBitfinex.Entities;
+using Newtonsoft.Json.Linq;
 
 namespace ConnectorBitfinex;
 
@@ -10,6 +11,8 @@ public interface ITestConnector
     public Task<IEnumerable<Candle>> GetCandleSeriesAsync(string pair, int periodInSec, DateTimeOffset? from, DateTimeOffset? to = null, long? count = 0);
 
     public Task<Ticker> GetTickerAsync(string pair);
+
+    public Task<IEnumerable<string>> GetAvailableExchangePairs();//список доступных конвертаций
     #endregion
 
     #region Socket

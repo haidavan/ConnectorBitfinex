@@ -106,4 +106,27 @@ public static class Utils
             Side = amount > 0 ? "buy" : "sell",
         };
     }
+    public static Candle GetCandleFromJson(string json, string pair)
+    {
+        var candledata = JsonSerializer.Deserialize<List<object>>(json);
+               var closePrice = decimal.Parse(candledata[2].ToString(), NumberStyles.Float,
+                       CultureInfo.InvariantCulture);
+               var totalVolume = decimal.Parse(candledata[5].ToString(), NumberStyles.Float,
+                       CultureInfo.InvariantCulture);
+        return new Candle
+        {
+            OpenTime = DateTimeOffset.FromUnixTimeMilliseconds(long.Parse(candledata[0].ToString())),
+            OpenPrice = decimal.Parse(candledata[1].ToString(), NumberStyles.Float,
+                    CultureInfo.InvariantCulture),
+            ClosePrice = closePrice,
+            HighPrice = decimal.Parse(candledata[3].ToString(), NumberStyles.Float,
+                    CultureInfo.InvariantCulture),
+            LowPrice = decimal.Parse(candledata[4].ToString(), NumberStyles.Float,
+                    CultureInfo.InvariantCulture),
+            TotalVolume = totalVolume,
+            Pair = pair,
+            TotalPrice = totalVolume * closePrice,
+
+        };
+    }
 }

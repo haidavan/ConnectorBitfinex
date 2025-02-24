@@ -30,8 +30,10 @@ namespace ConnectorBitfinex.APIClients
 
         public async Task ConnectToServer()
         {
+
             await _clientWebSocket.ConnectAsync(new Uri("wss://api-pub.bitfinex.com/ws/2"), CancellationToken.None);
             _ = ReceiveMessages();
+
         }
 
         private async Task ReceiveMessages()
@@ -44,7 +46,6 @@ namespace ConnectorBitfinex.APIClients
                 if (result.MessageType == WebSocketMessageType.Text)
                 {
                     string receivedMessage = Encoding.UTF8.GetString(receiveBuffer, 0, result.Count);
-                    Console.WriteLine($"Received message from server: {receivedMessage}");
                     JObject message = new JObject();
                     try
                     {
@@ -60,27 +61,13 @@ namespace ConnectorBitfinex.APIClients
                     }
                     catch (Exception ex)//информация о трейдах/свечах состоит из полезных данных без ключей
                     {
-                        try
+                        JArray msg = JArray.Parse(receivedMessage);
+                        if (msg[1].ToString() == "hb") continue;
+                        if (_ChanIdToChannels[msg[0].ToString()].type == "trades")
                         {
-                            JArray msg = JArray.Parse(receivedMessage);
-                            if (_ChanIdToChannels[msg[0].ToString()].type == "trades")
-                                if (msg.Count == 2)
-                                {
-                                    if (msg[1].ToString() == "hb") continue;
-
-                                    foreach (var trade in Utils.GetTradesFromJson(msg[1].ToString(), _ChanIdToChannels[msg[0].ToString()].info))
-                                        if (trade.Amount > 0)
-                                        {
-                                            NewBuyTradeReceived?.Invoke(trade);
-                                        }
-                                        else
-                                        {
-                                            NewSellTradeReceived?.Invoke(trade);
-                                        }
-                                }
-                                else if (msg.Count == 3)
-                                {
-                                    var trade = Utils.GetTradeFromJson(msg[2].ToString(), _ChanIdToChannels[msg[0].ToString()].info);
+                            if (msg.Count == 2)
+                            {
+                                foreach (var trade in Utils.GetTradesFromJson(msg[1].ToString(), _ChanIdToChannels[msg[0].ToString()].info))
                                     if (trade.Amount > 0)
                                     {
                                         NewBuyTradeReceived?.Invoke(trade);
@@ -89,12 +76,32 @@ namespace ConnectorBitfinex.APIClients
                                     {
                                         NewSellTradeReceived?.Invoke(trade);
                                     }
+                            }
+                            else if (msg.Count == 3)
+                            {
+                                var trade = Utils.GetTradeFromJson(msg[2].ToString(), _ChanIdToChannels[msg[0].ToString()].info);
+                                if (trade.Amount > 0)
+                                {
+                                    NewBuyTradeReceived?.Invoke(trade);
                                 }
-                                else if (_ChanIdToChannels[msg[0].ToString()].type == "candles")
-                                    Utils.GetCandlesFromJson(msg[1].ToString(), _ChanIdToChannels[msg[0].ToString()].info);
+                                else
+                                {
+                                    NewSellTradeReceived?.Invoke(trade);
+                                }
+                            }
                         }
-                        catch (Exception e)
-                        { Console.WriteLine(e.Message.ToString()); }
+                        else if (_ChanIdToChannels[msg[0].ToString()].type == "candles")
+                            try
+                            {
+                                foreach (var candle in Utils.GetCandlesFromJson(msg[1].ToString(), _ChanIdToChannels[msg[0].ToString()].info))
+                                {
+                                    CandleReceived?.Invoke(candle);
+                                }
+                            }
+                            catch (Exception e) //exception trying to parse candle array, so it most likely single candle
+                            {
+                                CandleReceived?.Invoke(Utils.GetCandleFromJson(msg[1].ToString(), _ChanIdToChannels[msg[0].ToString()].info));
+                            }
                     }
                 }
             }
@@ -106,6 +113,10 @@ namespace ConnectorBitfinex.APIClients
             await _clientWebSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None);
         }
 
+        //request for subscribe candles example
+        //event: "subscribe",
+        //channel: "candles",
+        //key: "trade:1m:tBTCUSD"
         public async Task SubscribeCandlesAsync(string pair, string timeframe)
         {
             var msg = new
@@ -117,6 +128,11 @@ namespace ConnectorBitfinex.APIClients
             await SendMessage(JsonSerializer.Serialize(msg));
         }
 
+        //request for subscribe trades example, no max count
+        //event: "subscribe", 
+        //channel: "trades", 
+        //symbol: SYMBOL
+
         public async Task SubscribeTrades(string pair, int maxCount = 100)
         {
             var msg = new
@@ -124,10 +140,8 @@ namespace ConnectorBitfinex.APIClients
                 @event = "subscribe",
                 channel = "trades",
                 symbol = $"{pair}",
-                //limit = $"{maxCount}",
             };
             await SendMessage(JsonSerializer.Serialize(msg));
-            Console.WriteLine(JsonSerializer.Serialize(msg));
         }
 
         public async Task UnsubscribeCandles(string pair)
@@ -135,8 +149,10 @@ namespace ConnectorBitfinex.APIClients
             var msg = new
             {
                 @event = "unsubscribe",
-                channel = "candles",
-                symbol = $"{pair}",
+                chanId = $"{_ChanIdToChannels
+                .Where(keyWithValue => keyWithValue.Value.info.Split(":").Last() == pair)
+                .Select(keyWithValue => keyWithValue.Key)
+                .FirstOrDefault()}",
             };
             await SendMessage(JsonSerializer.Serialize(msg));
         }
@@ -146,8 +162,10 @@ namespace ConnectorBitfinex.APIClients
             var msg = new
             {
                 @event = "unsubscribe",
-                channel = "trades",
-                symbol = $"{pair}",
+                chanId = $"{_ChanIdToChannels
+                .Where(keyWithValue => keyWithValue.Value.info == pair)
+                .Select(keyWithValue => keyWithValue.Key)
+                .FirstOrDefault()}",
             };
             await SendMessage(JsonSerializer.Serialize(msg));
         }
@@ -155,7 +173,6 @@ namespace ConnectorBitfinex.APIClients
         public async Task CloseConnection()
         {
             await _clientWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
-            Console.WriteLine("Connection closed.");
         }
     }
 }

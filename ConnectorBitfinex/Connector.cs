@@ -1,5 +1,6 @@
 ﻿using ConnectorBitfinex.Entities;
 using ConnectorBitfinex.APIClients;
+using Newtonsoft.Json.Linq;
 
 namespace ConnectorBitfinex;
 
@@ -20,7 +21,7 @@ public class Connector : ITestConnector
         _websocketClient.NewSellTradeReceived += OnNewSellTradeReceived;
         _websocketClient.CandleReceived += OnCandleReceived;
 
-        _websocketClient.ConnectToServer().Wait();
+        _websocketClient.ConnectToServer();
     }
 
     public event Action<Trade> NewBuyTrade
@@ -87,7 +88,11 @@ public class Connector : ITestConnector
     {
        _websocketClient.UnsubscribeTrades(pair);
     }
-    
+
+    public Task<IEnumerable<string>> GetAvailableExchangePairs()
+    {
+        return _restApiClient.GetAvailableExchangePairs();
+    }
     ~Connector()
     { 
         _websocketClient.CloseConnection();

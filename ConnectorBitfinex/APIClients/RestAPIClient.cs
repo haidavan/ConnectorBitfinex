@@ -1,4 +1,5 @@
-﻿using System.Globalization;
+﻿using Newtonsoft.Json.Linq;
+using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text.Json;
 
@@ -21,7 +22,7 @@ public class RestAPIClient
 
     public async Task<string> GetTradeAsync(string pair, int maxCount)
     {
-        var uriBuilder = new UriBuilder(_httpClient.BaseAddress + $"trades/{pair}/hist");
+        var uriBuilder = new UriBuilder(_httpClient.BaseAddress + $"trades/t{pair}/hist");
         var query = System.Web.HttpUtility.ParseQueryString(uriBuilder.Query);
 
         query["limit"] = maxCount.ToString();
@@ -29,15 +30,21 @@ public class RestAPIClient
         uriBuilder.Query = query.ToString();
 
         HttpResponseMessage response = await _httpClient.GetAsync(uriBuilder.Uri.ToString());
-        response.EnsureSuccessStatusCode();
+        try
+        {
+            response.EnsureSuccessStatusCode();
+        }
+        catch (Exception ex)
+        {
+            throw new Exception(pair + "   " + await response.Content.ReadAsStringAsync());
+        }
         return await response.Content.ReadAsStringAsync();
     }
     public async Task<string> GetCandleSeriesAsync(string pair, string timeFrame, DateTimeOffset? from,
         DateTimeOffset? to = null, long? count = 0)
     {
-        var uriBuilder = new UriBuilder(_httpClient.BaseAddress + $"candles/tickerdata:{timeFrame}:{pair}/hist");
+        var uriBuilder = new UriBuilder(_httpClient.BaseAddress + $"candles/tickerdata:{timeFrame}:t{pair}/hist");
         var query = System.Web.HttpUtility.ParseQueryString(uriBuilder.Query);
-        Console.WriteLine(uriBuilder.Uri.ToString());
 
         query["start"] = from.ToString();
         query["end"] = to.ToString();
@@ -46,15 +53,44 @@ public class RestAPIClient
         uriBuilder.Query = query.ToString();
 
         HttpResponseMessage response = await _httpClient.GetAsync(uriBuilder.Uri.ToString());
-        response.EnsureSuccessStatusCode();
+        try
+        {
+            response.EnsureSuccessStatusCode();
+        }
+        catch (Exception ex)
+        {
+            throw new Exception(pair + "   " + await response.Content.ReadAsStringAsync());
+        }
         return await response.Content.ReadAsStringAsync();
     }
     public async Task<string> GetTickerAsync(string pair)
     {
-        var uriBuilder = new UriBuilder(_httpClient.BaseAddress + $"ticker/{pair}");
+        var uriBuilder = new UriBuilder(_httpClient.BaseAddress + $"ticker/t{pair}");
 
         HttpResponseMessage response = await _httpClient.GetAsync(uriBuilder.Uri.ToString());
-        response.EnsureSuccessStatusCode();
+        try
+        {
+            response.EnsureSuccessStatusCode();
+        }
+        catch (Exception ex)
+        {
+            throw new Exception(pair+"   "+await response.Content.ReadAsStringAsync());
+        }
         return await response.Content.ReadAsStringAsync();
+    }
+    public async Task<IEnumerable<string>> GetAvailableExchangePairs()
+    {
+        var uriBuilder = new UriBuilder(_httpClient.BaseAddress + "conf/pub:list:pair:exchange");
+        HttpResponseMessage response = await _httpClient.GetAsync(uriBuilder.Uri.ToString());
+        try
+        {
+            response.EnsureSuccessStatusCode();
+            var data = JsonSerializer.Deserialize<List<List<string>>>(await response.Content.ReadAsStringAsync());
+            return data.SelectMany(innerList => innerList);
+        }
+        catch (Exception ex)
+        {
+            throw new Exception(await response.Content.ReadAsStringAsync());
+        }
     }
 }
